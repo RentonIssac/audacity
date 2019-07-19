@@ -94,14 +94,21 @@ class ImportRawDialog final : public wxDialogWrapper {
 // This function leaves outTracks empty as an indication of error,
 // but may also throw FileException to make use of the application's
 // user visible error reporting.
+
+int renton_last_encoding = 0;
+unsigned int renton_last_numChannels = 0;
+double renton_last_rate = 50000.0;
+sf_count_t renton_last_offset = 0;
+double renton_last_percent = 100.0;
+
 void ImportRaw(wxWindow *parent, const wxString &fileName,
-              TrackFactory *trackFactory, TrackHolders &outTracks)
+              TrackFactory *trackFactory, TrackHolders &outTracks, bool useLastParams )
 {
    outTracks.clear();
    int encoding = 0; // Guess Format
    sampleFormat format;
    sf_count_t offset = 0;
-   double rate = 44100.0;
+   double rate = 50000.0;// 44100.0;
    double percent = 100.0;
    TrackHolders results;
    auto updateResult = ProgressResult::Success;
@@ -110,7 +117,7 @@ void ImportRaw(wxWindow *parent, const wxString &fileName,
       SF_INFO sndInfo;
       unsigned numChannels = 0;
 
-      try {
+      /*try {
          // Yes, FormatClassifier currently handles filenames in UTF8 format only, that's
          // a TODO ...
          FormatClassifier theClassifier(fileName.utf8_str());
@@ -130,17 +137,37 @@ void ImportRaw(wxWindow *parent, const wxString &fileName,
          offset = 0;
       }
 
-      numChannels = std::max(1u, numChannels);
-      ImportRawDialog dlog(parent, encoding, numChannels, (int)offset, rate);
-      dlog.ShowModal();
-      if (!dlog.GetReturnCode())
-         return;
+      numChannels = std::max(1u, numChannels);*/
 
-      encoding = dlog.mEncoding;
-      numChannels = dlog.mChannels;
-      rate = dlog.mRate;
-      offset = (sf_count_t)dlog.mOffset;
-      percent = dlog.mPercent;
+	  // renton default params
+	  encoding = SF_FORMAT_RAW | SF_ENDIAN_LITTLE | SF_FORMAT_PCM_16;
+	  numChannels = 1;
+	  offset = 0;
+
+	  if( false == useLastParams ) {
+		  ImportRawDialog dlog( parent, encoding, numChannels, ( int ) offset, rate );
+		  dlog.ShowModal();
+		  if( !dlog.GetReturnCode() )
+			  return;
+
+		  encoding = dlog.mEncoding;
+		  numChannels = dlog.mChannels;
+		  rate = dlog.mRate;
+		  offset = ( sf_count_t ) dlog.mOffset;
+		  percent = dlog.mPercent;
+
+		  renton_last_encoding = encoding;
+		  renton_last_numChannels = numChannels;
+		  renton_last_rate = rate;
+		  renton_last_offset = offset;
+		  renton_last_percent = percent;
+	  } else {
+		  encoding = renton_last_encoding;
+		  numChannels = renton_last_numChannels;
+		  rate = renton_last_rate;
+		  offset = renton_last_offset;
+		  percent = renton_last_percent;
+	  }
 
       memset(&sndInfo, 0, sizeof(SF_INFO));
       sndInfo.samplerate = (int)rate;

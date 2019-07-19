@@ -482,7 +482,7 @@ void OnImportRaw(const CommandContext &context)
    auto &trackFactory = TrackFactory::Get( project );
    auto &window = ProjectWindow::Get( project );
 
-   wxString fileName =
+   /*wxString fileName =
        FileNames::SelectFile(FileNames::Operation::Open,
                     _("Select any uncompressed audio file"),
                     wxEmptyString,     // Path
@@ -505,6 +505,56 @@ void OnImportRaw(const CommandContext &context)
    ProjectFileManager::Get( project )
       .AddImportedTracks(fileName, std::move(newTracks));
    window.HandleResize(); // Adjust scrollers for NEW track sizes.
+   */
+
+   wxArrayString selectedFiles = ProjectFileManager::ShowOpenDialog( wxT( "" ) );
+   if( selectedFiles.size() == 0 ) {
+	   gPrefs->Write( wxT( "/LastOpenType" ), wxT( "" ) );
+	   gPrefs->Flush();
+	   return;
+   }
+
+   // PRL:  This affects FFmpegImportPlugin::Open which resets the preference
+   // to false.  Should it also be set to true on other paths that reach
+   // AudacityProject::Import ?
+   gPrefs->Write( wxT( "/NewImportingSession" ), true );
+
+   //sort selected files by OD status.  Load non OD first so user can edit asap.
+   //first sort selectedFiles.
+   selectedFiles.Sort( CompareNoCaseFileName );
+   ODManager::Pauser pauser;
+
+   auto cleanup = finally( [&] {
+	   gPrefs->Write( wxT( "/LastOpenType" ), wxT( "" ) );
+
+	   gPrefs->Flush();
+
+	   window.HandleResize(); // Adjust scrollers for NEW track sizes.
+	   //window.ZoomAfterImport( nullptr );
+   } );
+
+   bool useLastParams = false;
+   for( size_t ff = 0; ff < selectedFiles.size(); ff++ ) {
+	   wxString fileName = selectedFiles[ ff ];
+
+	   if( fileName.empty() )
+		   continue;
+
+	   TrackHolders newTracks;
+
+	   ::ImportRaw( &window, fileName, &trackFactory, newTracks, useLastParams );
+
+	   if( newTracks.size() <= 0 )
+		   continue;
+
+	   ProjectFileManager::Get( project )
+		   .AddImportedTracks( fileName, std::move( newTracks ) );
+	   //window.HandleResize(); // Adjust scrollers for NEW track sizes.
+
+	   useLastParams = true;
+   }
+
+   window.ZoomAfterImport( nullptr );
 }
 
 void OnPageSetup(const CommandContext &context)

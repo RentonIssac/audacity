@@ -28,6 +28,6 @@ using TrackHolders = std::vector< NewChannelGroup >;
 
 
 void ImportRaw(wxWindow *parent, const wxString &fileName,
-   TrackFactory *trackFactory, TrackHolders &outTracks);
+   TrackFactory *trackFactory, TrackHolders &outTracks, bool useLastParams = false );
 
 #endif
